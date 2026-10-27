@@ -1,29 +1,61 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>V12 MEGA</title><style>
-body{background:#050505;color:#fff;font-family:Arial;margin:0;padding:10px}
-.h{color:#4cff4c;text-align:center;font-weight:900;font-size:17px;margin:10px}
-.card{background:#121212;border:1px solid #333;border-radius:12px;padding:12px;margin-bottom:10px}
-.match{background:#1c1c1c;border-left:5px solid #00d4ff;border-radius:12px;padding:12px;margin:14px 0}
-.conf{float:right;background:#00d4ff;color:#000;font-weight:900;padding:4px 10px;border-radius:20px}
-.prono{background:#ffeb3b;color:#000;font-weight:900;padding:8px 12px;border-radius:8px;display:inline-block;margin:6px 0}
-.ana{font-size:11px;color:#bbb;margin:2px 0}.inj{color:#ff4444;font-size:11px}
-.btn{width:100%;padding:14px;font-weight:900;border:none;border-radius:10px;margin:6px 0}.y{background:#00d4ff}
-</style></head><body>
-<div class="h">V12 MEGA - TRANSFERTS / BLESSURES / FORME</div>
-<div class="card" id="ticket">Scan profond 30 sec...</div>
-<button class="btn y" onclick="load()">🔬 LANCER MEGA ANALYSE (12 MATCHS)</button>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BOSS V12 FREE</title>
+<style>
+body{background:#080808;color:#fff;font-family:Arial;margin:0;padding:10px}
+.h{color:#4cff4c;text-align:center;font-weight:900;font-size:18px;margin:10px}
+.card{background:#151515;border:1px solid #333;border-radius:12px;padding:12px;margin-bottom:10px}
+.match{background:#1e1e1e;border-left:5px solid #ffd700;border-radius:12px;padding:12px;margin:12px 0}
+.conf{float:right;background:#4cff4c;color:#000;font-weight:900;padding:4px 10px;border-radius:20px;font-size:12px}
+.prono{background:#ffd700;color:#000;font-weight:900;padding:8px 12px;border-radius:8px;display:inline-block;margin:6px 0}
+.ana{font-size:12px;color:#bbb;margin:3px 0}
+.ana:before{content:"✓ ";color:#4cff4c}
+.odds{display:flex;gap:6px;margin:6px 0}
+.o{background:#2a2a2a;padding:5px 8px;border-radius:6px;font-size:12px}
+.btn{width:100%;padding:14px;font-weight:900;border:none;border-radius:10px;margin:6px 0}
+.y{background:#ffeb3b;color:#000}
+</style>
+</head>
+<body>
+
+<div class="h">BOSS V12 FREE - 8 MATCHS / JOUR</div>
+
+<div class="card" id="ticket">Chargement rapide...</div>
+
+<button class="btn y" onclick="load()">🔥 LANCER ANALYSE (8 MATCHS - 3 sec)</button>
+
 <div id="list"></div>
+
 <script>
 async function load(){
- document.getElementById('ticket').innerHTML='Analyse temps/espace... blessures + forme 5 matchs + stats domicile (30s)...';
- let r=await fetch('/api/combine');let d=await r.json();
- let html='';let txt=`<b>${d.count} ANALYSES MEGA</b><br>COTE TOT ${d.cote_tot.toFixed(2)}<br><br>`;
- d.matches.forEach((m,i)=>{
-  txt+=`${i+1}. ${m.home} vs ${m.away} => ${m.prono} @${m.cote} (${m.confiance}%)<br>`;
-  html+=`<div class=match><div class=conf>${m.confiance}%</div><b>${m.home}</b> vs <b>${m.away}</b> <small>${m.league}</small><br><small>Forme: ${m.home} ${m.form_h} | ${m.away} ${m.form_a}</small><div style=display:flex;gap:6px;margin:5px 0><div style=background:#222;padding:4px 8px;border-radius:5px;font-size:11px>V1 ${m.odds.V1}</div><div style=background:#222;padding:4px 8px;border-radius:5px;font-size:11px>X ${m.odds.X}</div><div style=background:#222;padding:4px 8px;border-radius:5px;font-size:11px>V2 ${m.odds.V2}</div></div><div class=prono>👉 ${m.type} - ${m.prono} @${m.cote}</div><div>${m.analyses.map(a=>`<div class=ana>${a}</div>`).join('')}</div>${m.injuries.length?`<div class=inj>🤕 Blessés: ${m.injuries.map(x=>x.player.name+' ('+x.team.name+')').join(', ')}</div>`:''}</div>`;
- });
- document.getElementById('ticket').innerHTML=txt;
- document.getElementById('list').innerHTML=html;
+ document.getElementById('ticket').innerHTML='Scan 1xBet en cours... 3 secondes...';
+ document.getElementById('list').innerHTML='';
+ try{
+  let r = await fetch('/api/combine');
+  let d = await r.json();
+  let html='';
+  let txt=`<b>${d.count} MATCHS - ${d.mode}</b><br>COTE TOT ${d.cote_tot.toFixed(2)}<br><br>`;
+  d.matches.forEach((m,i)=>{
+   txt+=`${i+1}. ${m.home} vs ${m.away} => ${m.prono} @${m.cote} (${m.confiance}%)<br>`;
+   html+=`<div class=match>
+   <div class=conf>${m.confiance}%</div>
+   <div style=display:flex;align-items:center;gap:8px><img src=${m.logo_h} width=28><b>${m.home}</b> vs <b>${m.away}</b><img src=${m.logo_a} width=28></div>
+   <small style=color:#888>${m.league} | ${m.book}</small>
+   <div class=odds><div class=o>V1 ${m.odds.V1}</div><div class=o>X ${m.odds.X}</div><div class=o>V2 ${m.odds.V2}</div></div>
+   <div class=prono>👉 ${m.type} - ${m.prono} @${m.cote}</div>
+   <div>${m.analyses.map(a=>`<div class=ana>${a}</div>`).join('')}</div>
+   </div>`;
+  });
+  document.getElementById('ticket').innerHTML=txt;
+  document.getElementById('list').innerHTML=html;
+ }catch(e){
+  document.getElementById('ticket').innerHTML='Instance gratuite qui se réveille, attends 50 sec et reclique (normal en FREE)';
+ }
 }
 load();
-</script></body></html>
+</script>
+
+</body>
+</html>
