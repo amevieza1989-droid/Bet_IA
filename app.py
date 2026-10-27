@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify
 import requests, os, random
-from datetime import datetime, timedelta
+from datetime import datetime
 
 app = Flask(__name__)
 API_KEY = os.environ.get("API_KEY", "87d21d97f45e4d123844a530d0a58169")
@@ -9,8 +9,19 @@ LEAGUES = [39,140,135,78,61,88]
 
 def H(): return {"x-apisports-key": API_KEY}
 
+def get_quota():
+    try:
+        r = requests.get(f"{BASE_URL}/status", headers=H(), timeout=6)
+        data = r.json().get("response", {})
+        req = data.get("requests", {})
+        used = req.get("current", 0)
+        limit = req.get("limit_day", 100)
+        remain = limit - used
+        return used, limit, remain
+    except:
+        return 0, 100, 0
+
 def get_fixtures_fast():
-    # 1 seule requête date d'aujourd'hui
     d = datetime.now().strftime("%Y-%m-%d")
     try:
         r = requests.get(f"{BASE_URL}/fixtures?date={d}", headers=H(), timeout=8)
@@ -42,9 +53,12 @@ def index(): return render_template("index.html")
 
 @app.route("/api/combine")
 def combine():
+    used, limit, remain = get_quota()
     fixtures = get_fixtures_fast()
-    # Si API morte, on donne des matchs demo pour que l'écran ne reste pas noir
-    if not fixtures:
+    
+    quota_text = f"QUOTA: {used}/{limit} utilisés - Reste {remain}"
+    
+    if remain <= 2 or not fixtures:
         demo = [
             {"home":"Roma","away":"Cagliari","league":"Serie A","lh":"https://media.api-sports.io/football/teams/497.png","la":"https://media.api-sports.io/football/teams/499.png","V1":"1.85","X":"3.60","V2":"4.20"},
             {"home":"Torino","away":"Como","league":"Serie A","lh":"https://media.api-sports.io/football/teams/503.png","la":"https://media.api-sports.io/football/teams/612.png","V1":"2.10","X":"3.20","V2":"3.40"},
@@ -58,14 +72,14 @@ def combine():
             res.append({
                 "home":m["home"],"away":m["away"],"league":m["league"],
                 "logo_h":m["lh"],"logo_a":m["la"],
-                "odds":{"V1":m["V1"],"X":m["X"],"V2":m["V2"],"book":"DEMO (quota épuisé)"},
+                "odds":{"V1":m["V1"],"X":m["X"],"V2":m["V2"],"book":"DEMO"},
                 "prono":prono,"cote":cote,"type":"1" if v1<v2 else "2",
                 "confiance":82,"analyses":[f"🏠 Domicile fort @ {m['V1']}", "📈 Forme temps: 3W sur 5", "✅ Effectif complet (mode démo)"]
             })
-        return jsonify({"matches":res,"cote_tot":round(v1*v2,2),"count":len(res),"mode":"DEMO - Quota API épuisé, reviens demain"})
-    
+        return jsonify({"matches":res,"cote_tot":8.55,"count":len(res),"mode":"DEMO - Quota épuisé","quota_used":used,"quota_limit":limit,"quota_remain":remain,"quota_text":quota_text})
+
     final=[]
-    for m in fixtures[:8]: # 8 max pour rester rapide
+    for m in fixtures[:8]:
         odds=get_odds_fast(m["fixture"]["id"])
         if not odds: continue
         home=m["teams"]["home"]["name"]; away=m["teams"]["away"]["name"]
@@ -82,9 +96,15 @@ def combine():
             "analyses":[f"🏠 Cote favori @ {min(v1,v2)}", f"📊 Temps: forme récente analysée", f"✈️ Espace: perf domicile/extérieur OK"]
         })
         if len(final)>=8: break
-    
+
     cote_tot=1
     for r in final: cote_tot*=float(r["cote"])
-    return jsonify({"matches":final,"cote_tot":round(cote_tot,2),"count":len(final),"mode":"FREE LIVE"})
+    
+    used2, limit2, remain2 = get_quota()
+    return jsonify({
+        "matches":final,"cote_tot":round(cote_tot,2),"count":len(final),"mode":"FREE LIVE",
+        "quota_used":used2,"quota_limit":limit2,"quota_remain":remain2,
+        "quota_text":f"QUOTA: {used2}/{limit2} utilisés - Reste {remain2} - Reset à minuit UTC"
+    })
 
 if __name__=="__main__": app.run(host="0.0.0.0",port=10000)
