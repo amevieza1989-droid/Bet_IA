@@ -1,61 +1,43 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BOSS V12 FREE</title>
-<style>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BOSS V12 FREE</title><style>
 body{background:#080808;color:#fff;font-family:Arial;margin:0;padding:10px}
 .h{color:#4cff4c;text-align:center;font-weight:900;font-size:18px;margin:10px}
 .card{background:#151515;border:1px solid #333;border-radius:12px;padding:12px;margin-bottom:10px}
+.quota{background:#1a1a1a;border:1px solid #ffd700;border-radius:8px;padding:8px;text-align:center;margin:8px 0;font-size:13px}
+.bar{height:8px;background:#333;border-radius:4px;overflow:hidden;margin-top:6px}
+.fill{height:100%;background:linear-gradient(90deg,#4cff4c,#ffd700)}
 .match{background:#1e1e1e;border-left:5px solid #ffd700;border-radius:12px;padding:12px;margin:12px 0}
 .conf{float:right;background:#4cff4c;color:#000;font-weight:900;padding:4px 10px;border-radius:20px;font-size:12px}
 .prono{background:#ffd700;color:#000;font-weight:900;padding:8px 12px;border-radius:8px;display:inline-block;margin:6px 0}
-.ana{font-size:12px;color:#bbb;margin:3px 0}
-.ana:before{content:"✓ ";color:#4cff4c}
-.odds{display:flex;gap:6px;margin:6px 0}
-.o{background:#2a2a2a;padding:5px 8px;border-radius:6px;font-size:12px}
-.btn{width:100%;padding:14px;font-weight:900;border:none;border-radius:10px;margin:6px 0}
-.y{background:#ffeb3b;color:#000}
-</style>
-</head>
-<body>
-
+.ana{font-size:12px;color:#bbb;margin:3px 0} .ana:before{content:"✓ ";color:#4cff4c}
+.odds{display:flex;gap:6px;margin:6px 0}.o{background:#2a2a2a;padding:5px 8px;border-radius:6px;font-size:12px}
+.btn{width:100%;padding:14px;font-weight:900;border:none;border-radius:10px;margin:6px 0}.y{background:#ffeb3b;color:#000}
+</style></head><body>
 <div class="h">BOSS V12 FREE - 8 MATCHS / JOUR</div>
-
+<div class="quota" id="quota">Chargement quota...</div>
 <div class="card" id="ticket">Chargement rapide...</div>
-
-<button class="btn y" onclick="load()">🔥 LANCER ANALYSE (8 MATCHS - 3 sec)</button>
-
+<button class="btn y" onclick="load()">🔥 LANCER ANALYSE</button>
 <div id="list"></div>
-
 <script>
 async function load(){
- document.getElementById('ticket').innerHTML='Scan 1xBet en cours... 3 secondes...';
+ document.getElementById('ticket').innerHTML='Scan 1xBet... 3 sec...';
  document.getElementById('list').innerHTML='';
  try{
-  let r = await fetch('/api/combine');
-  let d = await r.json();
-  let html='';
-  let txt=`<b>${d.count} MATCHS - ${d.mode}</b><br>COTE TOT ${d.cote_tot.toFixed(2)}<br><br>`;
+  let r=await fetch('/api/combine');let d=await r.json();
+  let pct = Math.round((d.quota_used/d.quota_limit)*100);
+  let color = d.quota_remain<=10 ? '#ff4444' : '#4cff4c';
+  document.getElementById('quota').innerHTML = `<b style=color:${color}>${d.quota_text}</b><div class=bar><div class=fill style=width:${pct}%;background:${color}></div></div><small>${d.quota_remain>5?'✅ Tu peux encore analyser':'⛔ STOP - Attends demain minuit UTC'}</small>`;
+  let html='';let txt=`<b>${d.count} MATCHS - ${d.mode}</b><br>COTE TOT ${d.cote_tot.toFixed(2)}<br><br>`;
   d.matches.forEach((m,i)=>{
-   txt+=`${i+1}. ${m.home} vs ${m.away} => ${m.prono} @${m.cote} (${m.confiance}%)<br>`;
-   html+=`<div class=match>
-   <div class=conf>${m.confiance}%</div>
-   <div style=display:flex;align-items:center;gap:8px><img src=${m.logo_h} width=28><b>${m.home}</b> vs <b>${m.away}</b><img src=${m.logo_a} width=28></div>
-   <small style=color:#888>${m.league} | ${m.book}</small>
-   <div class=odds><div class=o>V1 ${m.odds.V1}</div><div class=o>X ${m.odds.X}</div><div class=o>V2 ${m.odds.V2}</div></div>
-   <div class=prono>👉 ${m.type} - ${m.prono} @${m.cote}</div>
-   <div>${m.analyses.map(a=>`<div class=ana>${a}</div>`).join('')}</div>
-   </div>`;
+   txt+=`${i+1}. ${m.home} vs ${m.away} => ${m.prono} @${m.cote}<br>`;
+   html+=`<div class=match><div class=conf>${m.confiance}%</div><div style=display:flex;align-items:center;gap:8px><img src=${m.logo_h} width=28><b>${m.home}</b> vs <b>${m.away}</b><img src=${m.logo_a} width=28></div><small style=color:#888>${m.league} | ${m.book}</small><div class=odds><div class=o>V1 ${m.odds.V1}</div><div class=o>X ${m.odds.X}</div><div class=o>V2 ${m.odds.V2}</div></div><div class=prono>👉 ${m.type} - ${m.prono} @${m.cote}</div><div>${m.analyses.map(a=>`<div class=ana>${a}</div>`).join('')}</div></div>`;
   });
   document.getElementById('ticket').innerHTML=txt;
   document.getElementById('list').innerHTML=html;
  }catch(e){
-  document.getElementById('ticket').innerHTML='Instance gratuite qui se réveille, attends 50 sec et reclique (normal en FREE)';
+  document.getElementById('quota').innerHTML='Quota: erreur lecture';
+  document.getElementById('ticket').innerHTML='Instance FREE qui se réveille, attends 50 sec et reclique';
  }
 }
 load();
-</script>
-
-</body>
-</html>
+</script></body></html>
