@@ -10,7 +10,6 @@ QUOTA_FILE = os.path.join(DB_DIR, "quota_v12.json")
 CACHE_FILE = os.path.join(DB_DIR, "cache_matchs_v12.json")
 QUOTA_MAX = 100
 
-# Ligues que 1win propose TOUJOURS
 LEAGUES_1WIN = {
     39: "Premier League", 140: "La Liga", 135: "Serie A", 61: "Ligue 1", 78: "Bundesliga",
     2: "Champions League", 3: "Europa League", 848: "Conference League",
@@ -111,8 +110,7 @@ def fetch_1win_matches():
                 break
         selected.sort(key=lambda x: x["heure"])
         return selected if len(selected) >= 1 else None
-    except Exception as e:
-        print(f"API ERROR {e}")
+    except:
         return None
 
 @app.route('/')
@@ -137,13 +135,12 @@ def home():
                 reste = QUOTA_MAX - quota_data["used"]
             else:
                 matchs = DEMO_1WIN
-                msg_no_match = "A 04h, 1win n'a pas encore publie les cotes Europe. Reviens a 11h-12h Lome, les vrais matchs 1win arrivent. En attendant DEMO 1WIN."
+                msg_no_match = "A 04h, 1win n'a pas encore publie les cotes Europe. Reviens a 11h-12h Lome, les vrais matchs 1win arrivent."
         else:
             matchs = DEMO_1WIN
     else:
-        if matchs and matchs[0]["compet"] in ["Premier League","La Liga","Serie A","Ligue 1","Bundesliga","Champions League","Europa League","Primeira Liga","Eredivisie"]:
+        if matchs and matchs[0]["compet"] in LEAGUES_1WIN.values():
             is_live = True
-
     cote_tot = 1
     for m in matchs[:3]:
         cote_tot *= m["cote"]
@@ -153,9 +150,9 @@ def home():
     cards_html = ""
     for m in matchs:
         details_html = "<br>".join([f"OK {d}" for d in m['details']])
-        cards_html += f'<div style="background:#111;border-left:4px solid gold;border-radius:12px;padding:12px;margin:10px 0"><div style="display:flex;justify-content:space-between"><div style="font-weight:bold">BALL {m["domicile"]} vs {m["exterieur"]}</div><span style="background:#25D366;color:#111;padding:4px 10px;border-radius:15px;font-weight:bold">{m["pct"]}%</span></div><div style="color:#888;font-size:12px">{m["compet"]} | {m["heure"]} Lome | {badge}</div><div style="background:gold;color:#111;padding:10px;border-radius:8px;font-weight:bold;text-align:center;margin-top:6px">POINTE 1 - {m["prono"]} @{m["cote"]} - SUR 1WIN</div><div style="font-size:11px;color:#aaa;margin-top:6px">{details_html}</div></div>'
+        cards_html += f'<div style="background:#111;border-left:4px solid gold;border-radius:12px;padding:12px;margin:10px 0"><div style="display:flex;justify-content:space-between"><div style="font-weight:bold">{m["domicile"]} vs {m["exterieur"]}</div><span style="background:#25D366;color:#111;padding:4px 10px;border-radius:15px;font-weight:bold">{m["pct"]}%</span></div><div style="color:#888;font-size:12px">{m["compet"]} | {m["heure"]} Lome | {badge}</div><div style="background:gold;color:#111;padding:10px;border-radius:8px;font-weight:bold;text-align:center;margin-top:6px">POINTE 1 - {m["prono"]} @{m["cote"]} - SUR 1WIN</div><div style="font-size:11px;color:#aaa;margin-top:6px">{details_html}</div></div>'
     msg_html = f'<div style="background:#220;border:1px solid #f90;color:#f90;padding:10px;border-radius:10px;margin-top:10px;text-align:center">{msg_no_match}</div>' if msg_no_match else ""
-    html = f'<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{{background:#000;color:#fff;font-family:Arial;padding:10px}} .bar{{background:#222;border-radius:10px;height:12px}} .fill{{height:12px;background:{quota_color};width:{used}%}}</style></head><body><h2 style="color:#00ff88;text-align:center">BOSS V12 FREE - 8 MATCHS 1WIN / JOUR</h2><div style="background:#111;border:1px solid {quota_color};padding:10px;border-radius:10px"><div style="color:{quota_color};font-weight:bold">{quota_text}</div><div class="bar"><div class="fill"></div></div><div style="color:#555;font-size:10px;text-align:center">Heure Lome: {today_lome} | API_KEY: {has_key} | V12.3 1WIN ONLY</div></div>{msg_html}<div style="background:#1a1a1a;border:1px solid gold;border-radius:12px;padding:12px;margin-top:12px"><b>3 MATCHS - {badge}<br>COTE TOT {cote_tot:.2f}</b><br>1. {matchs[0]["heure"]} - {matchs[0]["domicile"]} vs {matchs[0]["exterieur"]} => {matchs[0]["prono"]} @{matchs[0]["v1"]}</div><a href="/force-refresh" style="display:block;background:gold;color:#111;padding:14px;border-radius:10px;text-align:center;text-decoration:none;font-weight:bold;margin-top:12px">LANCER ANALYSE 1WIN (Cache 24h)</a>{cards_html}<div style="text-align:center;margin-top:15px"><a href="/reset-quota" style="color:#444;font-size:11px">[ADMIN] Reset + Re-Fetch 1WIN</a></div></body></html>'
+    html = f'<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{{background:#000;color:#fff;font-family:Arial;padding:10px}} .bar{{background:#222;border-radius:10px;height:12px}} .fill{{height:12px;background:{quota_color};width:{used}%}}</style></head><body><h2 style="color:#00ff88;text-align:center">BOSS V12 FREE - 8 MATCHS 1WIN / JOUR</h2><div style="background:#111;border:1px solid {quota_color};padding:10px;border-radius:10px"><div style="color:{quota_color};font-weight:bold">{quota_text}</div><div class="bar"><div class="fill"></div></div><div style="color:#555;font-size:10px;text-align:center">Heure Lome: {today_lome} | API_KEY: {has_key} | V12.4 1WIN ONLY</div></div>{msg_html}<div style="background:#1a1a1a;border:1px solid gold;border-radius:12px;padding:12px;margin-top:12px"><b>3 MATCHS - {badge}<br>COTE TOT {cote_tot:.2f}</b><br>1. {matchs[0]["heure"]} - {matchs[0]["domicile"]} vs {matchs[0]["exterieur"]} => {matchs[0]["prono"]} @{matchs[0]["v1"]}</div><a href="/force-refresh" style="display:block;background:gold;color:#111;padding:14px;border-radius:10px;text-align:center;text-decoration:none;font-weight:bold;margin-top:12px">LANCER ANALYSE 1WIN (Cache 24h)</a>{cards_html}<div style="text-align:center;margin-top:15px"><a href="/reset-quota" style="color:#444;font-size:11px">[ADMIN] Reset + Re-Fetch 1WIN</a></div></body></html>'
     return html
 
 @app.route('/force-refresh')
