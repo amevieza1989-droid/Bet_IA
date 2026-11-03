@@ -6,7 +6,7 @@ app = Flask(__name__)
 API_KEY = os.getenv("API_KEY","").strip()
 BASE_URL = "https://v3.football.api-sports.io"
 HEADERS = {"x-apisports-key": API_KEY}
-CACHE_FILE = "/tmp/cache_boss_v26.json"
+CACHE_FILE = "/tmp/cache_boss_v27.json"
 standings_cache = {}
 fixtures_cache = {}
 
@@ -49,7 +49,6 @@ def get_standings(league_id):
     return result
 
 def get_last_10_reels(team_id):
-    # FOUILLE PROFONDE: les 10 derniers vrais matchs joués
     if team_id in fixtures_cache: return fixtures_cache[team_id]
     try:
         r = requests.get(f"{BASE_URL}/fixtures", headers=HEADERS, params={"team": team_id, "last": 10, "status": "FT"}, timeout=12)
@@ -93,16 +92,10 @@ def fouille_profonde(fixture):
     standings = get_standings(league_id)
     h = standings.get(h_id); a = standings.get(a_id)
     if not h or not a: return None
-
-    # === FOUILLE REELLE 10 DERNIERS MATCHS ===
     h_last = get_last_10_reels(h_id)
     a_last = get_last_10_reels(a_id)
     h2h_avg, h2h_scores = get_h2h(h_id, a_id)
-
     total_reel = h['home_for'] + a['away_for']
-
-    # Taux réel de réussite sur les 10 derniers matchs
-    # Ex: Newcastle: 9/10 UNDER 3.5 + Everton: 9/10 UNDER 3.5 = très SAFE
     if h_last['total']>=5 and a_last['total']>=5:
         taux_under35 = (h_last['under35'] + a_last['under35']) / (h_last['total'] + a_last['total']) * 100
         taux_over05 = (h_last['over05'] + a_last['over05']) / (h_last['total'] + a_last['total']) * 100
@@ -110,14 +103,10 @@ def fouille_profonde(fixture):
         taux_under25 = (h_last['under25'] + a_last['under25']) / (h_last['total'] + a_last['total']) * 100
     else:
         taux_under35 = taux_over05 = taux_over15 = taux_under25 = 0
-
     preuves = []
     if h_last['total']: preuves.append(f"{h_name} 10 derniers: {h_last['scores'][:5]}")
     if h2h_avg is not None: preuves.append(f"H2H: {h2h_scores} (moy {h2h_avg:.1f})")
-
-    # === DECISION SUR DONNEES REELLES, PAS SUR MOYENNE ===
     market=None; conf=0; raison=""
-    # UNDER 3.5 si les 2 équipes font souvent UNDER 3.5 en vrai
     if taux_under35 >= 80 and total_reel < 2.6:
         market="UNDER 3.5"; conf=84 + min(5, int((taux_under35-80)/3))
         raison=f"En vrai: {taux_under35:.0f}% des 20 derniers matchs sont UNDER 3.5. Il faut 4 buts pour perdre."
@@ -130,11 +119,9 @@ def fouille_profonde(fixture):
     elif taux_under25 >= 75 and total_reel <= 2.2:
         market="UNDER 2.5"; conf=77 + min(5, int((taux_under25-75)/4))
         raison=f"En vrai: {taux_under25:.0f}% des matchs font UNDER 2.5."
-    else:
-        return None
-
+    else: return None
     if conf < 76: return None
-    return {'market': market, 'conf': min(89, conf), 'raison': raison, 'preuves': preuves, 'h': h, 'a': a, 'total': total_reel, 'taux_u35': taux_under35, 'taux_o05': taux_over05}
+    return {'market': market, 'conf': min(89, conf), 'raison': raison, 'preuves': preuves, 'h': h, 'a': a, 'total': total_reel}
 
 def render_ticket(titre, couleur, emoji, matchs, conseil):
     html = f"<div style='background:#111;border:2px solid {couleur};padding:16px;margin:16px 0;border-radius:14px'>"
@@ -152,21 +139,33 @@ def home():
     cached_data, cached_date = get_cache()
     if not force and cached_data and cached_date == today: return cached_data
     html = "<html><head><meta name='viewport' content='width=device-width'></head><body style='background:#0f0f0f;color:#fff;font-family:sans-serif;padding:10px'>"
-    html += "<h2>⚽ BOSS V26 FOUILLE REELLE - 10 DERNIERS MATCHS</h2>"
-    html += "<p style='font-size:11px;color:#ffcc00;background:#222;padding:8px;border-radius:6px'>V26 fouille les 10 derniers vrais matchs de chaque équipe. Pas de moyenne, du réel. Under/Over seulement. Aucun 100% garanti. 18+.</p>"
+    html += "<h2>⚽ BOSS V27 FOUILLE REELLE - FIX DATE</h2>"
+    html += "<p style='font-size:11px;color:#ffcc00;background:#222;padding:8px;border-radius:6px'>V27 = V26 + FIX date. Il cherche aujourd'hui, sinon demain. Under/Over seulement. Aucun 100% garanti. 18+.</p>"
     if not API_KEY: return html + "<p style='color:red'>API_KEY manquante</p></body></html>"
     try:
-        r = requests.get(f"{BASE_URL}/fixtures", headers=HEADERS, params={"date": today}, timeout=15)
-        fixtures = r.json().get("response", [])
-        remaining = r.headers.get('x-ratelimit-requests-remaining','?')
+        # FIX DATE: on teste 3 jours, on prend le premier qui a des matchs
+        fixtures = []
+        date_utilisee = today
+        remaining = '?'
+        for offset in [0, 1, 2]:
+            d = (datetime.utcnow() + timedelta(days=offset)).strftime("%Y-%m-%d")
+            r = requests.get(f"{BASE_URL}/fixtures", headers=HEADERS, params={"date": d}, timeout=15)
+            remaining = r.headers.get('x-ratelimit-requests-remaining','?')
+            f_tmp = r.json().get("response", [])
+            # On ne garde que les matchs pas encore joués
+            f_tmp = [x for x in f_tmp if x['fixture']['status']['short'] in ['NS','TBD']]
+            if len(f_tmp) > 0:
+                fixtures = f_tmp
+                date_utilisee = d
+                break
         results = []
         for f in fixtures[:60]:
             res = fouille_profonde(f)
             if res: results.append((res['conf'], f, res))
         results = sorted(results, key=lambda x: x[0], reverse=True)[:10]
-        html += f"<p style='color:#0f0'>🟢 API Reste: {remaining} | {len(fixtures)} matchs fouillés | {len(results)} SAFE trouvés</p>"
+        html += f"<p style='color:#0f0'>🟢 API Reste: {remaining} | Date utilisée: {date_utilisee} | {len(fixtures)} matchs fouillés | {len(results)} SAFE trouvés</p>"
         if len(results) < 3:
-            html += "<div style='background:#2a1a1a;border:1px solid #ff4444;padding:20px;border-radius:12px;text-align:center'><h3>🚫 PAS ASSEZ DE SAFE AUJOURD'HUI</h3><p>Fouille réelle: moins de 3 matchs assez crème. Ne joue pas.</p></div>"
+            html += f"<div style='background:#2a1a1a;border:1px solid #ff4444;padding:20px;border-radius:12px;text-align:center'><h3>🚫 PAS ASSEZ DE SAFE LE {date_utilisee}</h3><p>Fouille réelle: moins de 3 matchs assez crème. Ne joue pas.</p></div>"
         else:
             html += render_ticket("TICKET SAFE - Les 3 Supers Bons", "#00ff00", "🎯", results[:3], "Les 3 plus crème sur les 10 derniers vrais matchs. Mise normale.")
             if len(results) >= 5:
@@ -174,7 +173,7 @@ def home():
             if len(results) > 5:
                 html += render_ticket(f"TICKET JACKPOT - Les {len(results)} Bons", "#ff44ff", "💰", results, f"Le gros coup avec les {len(results)} SAFE trouvés. Très petite mise.")
     except Exception as e: html += f"<p style='color:red'>Erreur: {e}</p>"
-    html += "<br><a href='/?force=1' style='display:block;background:#ffcc00;color:#000;text-align:center;padding:16px;border-radius:10px;text-decoration:none;font-weight:bold'>🔄 FORCER ACTU - V26 FOUILLE REELLE</a></body></html>"
+    html += "<br><a href='/?force=1' style='display:block;background:#ffcc00;color:#000;text-align:center;padding:16px;border-radius:10px;text-decoration:none;font-weight:bold'>🔄 FORCER ACTU - V27 FIX DATE</a></body></html>"
     save_cache(html, today)
     return html
 
